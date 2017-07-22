@@ -8,6 +8,7 @@ import plantcv as pcv
 
 ### Parse command-line arguments
 def options():
+
     parser = argparse.ArgumentParser(description="Imaging processing with opencv")
     parser.add_argument("-i", "--image", help="Input image file.", required=True)
     parser.add_argument("-o", "--outdir", help="Output directory for image files.", required=False)
@@ -19,11 +20,9 @@ def options():
 
 ### Main pipeline
 def main():
+
     # Get options
     args = options()
-
-    #print args
-    #print "Fuck it!"
 
     # Read image
     img, path, filename = pcv.readimage(args.image)
@@ -33,20 +32,32 @@ def main():
 
     debug=args.debug
 
+    # Convert RGB to HSV and extract the Saturation channel
     device, s = pcv.rgb2gray_hsv(img, 's', device, debug)
+
+    # Threshold the Saturation image
     device, s_thresh = pcv.binary_threshold(s, 85, 255, 'light', device, debug)
+
+    # Median Filter
     device, s_mblur = pcv.median_blur(s_thresh, 5, device, debug)
     device, s_cnt = pcv.median_blur(s_thresh, 5, device, debug)
+
     # Convert RGB to LAB and extract the Blue channel
     device, b = pcv.rgb2gray_lab(img, 'b', device, debug)
 
     # Threshold the blue image
     device, b_thresh = pcv.binary_threshold(b, 160, 255, 'light', device, debug)
     device, b_cnt = pcv.binary_threshold(b, 160, 255, 'light', device, debug)
+
+    # Fill small objects
+    device, b_fill = pcv.fill(b_thresh, b_cnt, 10, device, debug)
+
     # Join the thresholded saturation and blue-yellow images
     device, bs = pcv.logical_or(s_mblur, b_cnt, device, debug)
+
     # Apply Mask (for vis images, mask_color=white)
     device, masked = pcv.apply_mask(img, bs, 'white', device, debug)
+
     # Convert RGB to LAB and extract the Green-Magenta and Blue-Yellow channels
     device, masked_a = pcv.rgb2gray_lab(masked, 'a', device, debug)
     device, masked_b = pcv.rgb2gray_lab(masked, 'b', device, debug)
@@ -79,7 +90,6 @@ def main():
     # Object combine kept objects
     device, obj, mask = pcv.object_composition(img, roi_objects, hierarchy3, device, debug)
 
-    #print device
-
 if __name__ == '__main__':
-  main()
+
+    main()
